@@ -49,10 +49,12 @@ for id in range(1, books_count + 1):
     response.raise_for_status()
     if not response.is_redirect:
         soup = BeautifulSoup(response.text, 'lxml')
+
         header = soup.find('td', class_='ow_px_td').find('h1')
         headers = str(header).strip('</h1>').split('::')
         title = headers[0].strip()
         author = headers[1].split('">')[1].rstrip('</a')
+        
         image_src = soup.find('div', class_='bookimage').find('img')['src']
 
         url = 'https://tululu.org/txt.php?id={}'.format(id)
@@ -60,3 +62,7 @@ for id in range(1, books_count + 1):
     
         image_url = urljoin(url, image_src)
         print(download_image(image_url, image_url.split('/')[-1]))
+
+        comments = soup.find_all('div', class_='texts')
+        for comment in comments:
+            print(comment.span.get_text())
