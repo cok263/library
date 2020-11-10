@@ -1,5 +1,7 @@
 import os
+import json
 import requests
+import codecs
 from bs4 import BeautifulSoup
 from pathvalidate import sanitize_filename
 from urllib.parse import urljoin
@@ -41,28 +43,45 @@ def download_image(url, filename, folder='images/'):
         file.write(response.content)
     return filename
 
-books_count = 9
-for id in range(9, books_count + 1):
-    url = 'https://tululu.org/b{}/'.format(id)
+def get_books_links(pages_count, base_url='https://tululu.org/l55/'):
+    books_href = []
+    for page in range(1, pages_count + 1):
+        url = urljoin(base_url, str(page))
+        response = requests.get(url, verify=False, allow_redirects=False)
+        response.raise_for_status()
+        if not response.is_redirect:
+            soup = BeautifulSoup(response.text, 'lxml')
+
+            content = soup.find('div', id='content')
+            book_cards = content.find_all('table', class_='d_book')
+            books_href += [urljoin(url, card.find('a')['href']) for card in book_cards]
+    return books_href
+
+books_links = get_books_links(4)
+for url in books_links:
+    id = url.split('/')[-2].lstrip('b')
     response = requests.get(url, verify=False, allow_redirects=False)
     response.raise_for_status()
     if not response.is_redirect:
         soup = BeautifulSoup(response.text, 'lxml')
 
-        content = soup.find('td', class_='ow_px_td')
+        content = soup.find('div', id='content')
         title, author = [header.strip() for header in str(content.find('h1').get_text()).split('::')]
-
         image_src = content.find('div', class_='bookimage').find('img')['src']
-
-        url = 'https://tululu.org/txt.php?id={}'.format(id)
-        download_txt(url, '{}. {}.txt'.format(id, title))
-    
+        url = 'https://tululu.org/txt.php?id={}'.format(id)  
         image_url = urljoin(url, image_src)
-        download_image(image_url, image_url.split('/')[-1])
-
         comments = [comment.span.get_text() for comment in content.find_all('div', class_='texts')]
         genres = [genre.get_text() for genre in content.find('span', class_='d_book').find_all('a')]
         
-        #print(comments)
-        print('Заголовок: {}'.format(title))
-        print(genres)
+        book_dict = {
+            'title': title,
+            'author': author,
+            'img src': image_url,
+            'comments': comments,
+            'genres': genres,
+        }
+
+        with codecs.open("books.json", "a", encoding='utf8') as books_file:
+            json.dump(book_dict, books_file, ensure_ascii=False)
+        download_txt(url, '{}. {}.txt'.format(id, title))
+        download_image(image_url, image_url.split('/')[-1])
