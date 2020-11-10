@@ -41,29 +41,28 @@ def download_image(url, filename, folder='images/'):
         file.write(response.content)
     return filename
 
-
-books_count = 1
-for id in range(1, books_count + 1):
+books_count = 9
+for id in range(9, books_count + 1):
     url = 'https://tululu.org/b{}/'.format(id)
     response = requests.get(url, verify=False, allow_redirects=False)
     response.raise_for_status()
     if not response.is_redirect:
         soup = BeautifulSoup(response.text, 'lxml')
 
-        header = soup.find('td', class_='ow_px_td').find('h1')
-        title, author = [header.strip() for header in str(header.get_text()).split('::')]
-        #title = headers[0].strip()
-        #author = headers[1].split('">')[1].rstrip('</a')
-        print(title, author)
+        content = soup.find('td', class_='ow_px_td')
+        title, author = [header.strip() for header in str(content.find('h1').get_text()).split('::')]
 
-        image_src = soup.find('div', class_='bookimage').find('img')['src']
+        image_src = content.find('div', class_='bookimage').find('img')['src']
 
         url = 'https://tululu.org/txt.php?id={}'.format(id)
-        print(download_txt(url, '{}. {}.txt'.format(id, title)))
+        download_txt(url, '{}. {}.txt'.format(id, title))
     
         image_url = urljoin(url, image_src)
-        print(download_image(image_url, image_url.split('/')[-1]))
+        download_image(image_url, image_url.split('/')[-1])
 
-        comments = soup.find_all('div', class_='texts')
-        for comment in comments:
-            print(comment.span.get_text())
+        comments = [comment.span.get_text() for comment in content.find_all('div', class_='texts')]
+        genres = [genre.get_text() for genre in content.find('span', class_='d_book').find_all('a')]
+        
+        #print(comments)
+        print('Заголовок: {}'.format(title))
+        print(genres)
