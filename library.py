@@ -42,7 +42,7 @@ def download_image(url, filename, folder='images/'):
     return filename
 
 
-books_count = 10
+books_count = 1
 for id in range(1, books_count + 1):
     url = 'https://tululu.org/b{}/'.format(id)
     response = requests.get(url, verify=False, allow_redirects=False)
@@ -51,10 +51,11 @@ for id in range(1, books_count + 1):
         soup = BeautifulSoup(response.text, 'lxml')
 
         header = soup.find('td', class_='ow_px_td').find('h1')
-        headers = str(header).strip('</h1>').split('::')
-        title = headers[0].strip()
-        author = headers[1].split('">')[1].rstrip('</a')
-        
+        title, author = [header.strip() for header in str(header.get_text()).split('::')]
+        #title = headers[0].strip()
+        #author = headers[1].split('">')[1].rstrip('</a')
+        print(title, author)
+
         image_src = soup.find('div', class_='bookimage').find('img')['src']
 
         url = 'https://tululu.org/txt.php?id={}'.format(id)
