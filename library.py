@@ -17,6 +17,7 @@ def download_txt(url, filename, folder='books/'):
     Returns:
         str: Путь до файла, куда сохранён текст.
     """
+
     response = requests.get(url, verify=False, allow_redirects=False)
     response.raise_for_status()
 
@@ -53,22 +54,13 @@ def get_books_links(start_page=1, end_page=sys.maxsize, base_url='https://tululu
         response.raise_for_status()
         if not response.is_redirect:
             soup = BeautifulSoup(response.text, 'lxml')
-
             content = soup.find('div', id='content')
             book_cards = content.find_all('table', class_='d_book')
             books_href += [urljoin(url, card.find('a')['href']) for card in book_cards]
         else: break
     return books_href
 
-def main():
-    parser = argparse.ArgumentParser(
-        description='Программа скачивает книги с сайта'
-    )
-    parser.add_argument('--start_page', help='Стартовая страница для парсинга', type=int, default=1)
-    parser.add_argument('--end_page', help='Страница окончания парсинга(не парсится)', type=int, default=sys.maxsize)
-    args = parser.parse_args()
-
-    books_links = get_books_links(args.start_page, args.end_page)
+def download_books(books_links, dest_folder='', skip_imgs=False, skip_txt=False, json_path='books.json'):
     for url in books_links:
         print(url)
         id = url.split('/')[-2].lstrip('b')
@@ -84,10 +76,11 @@ def main():
             title = content.select_one(selector_title).previous_sibling.strip().strip(':').strip().capitalize()
             author = content.select_one(selector_author).text.strip().title()
             
-            image_selector = '.bookimage img [src]'
-            image_src = content.select_one(image_selector)
+            image_selector = '.bookimage img'
+            image_src = content.select_one(image_selector)['src']
             url = 'https://tululu.org/txt.php?id={}'.format(id)  
             image_url = urljoin(url, image_src)
+            print(image_url)
 
             comments_selector = '.texts .black'
             comments = [comment.get_text() for comment in content.select(comments_selector)]
@@ -103,10 +96,33 @@ def main():
                 'genres': genres,
             }
 
-            with codecs.open("books.json", "a", encoding='utf8') as books_file:
+            json_file = os.path.join(dest_folder, json_path)
+            os.makedirs(os.path.dirname(json_file), exist_ok=True)
+            with codecs.open(json_file, "a", encoding='utf8') as books_file:
                 json.dump(book_dict, books_file, ensure_ascii=False)
-            download_txt(url, '{}. {}.txt'.format(id, title))
-            download_image(image_url, image_url.split('/')[-1])
+            if not skip_txt:
+                download_txt(url, '{}. {}.txt'.format(id, title), os.path.join(dest_folder, 'books/'))
+            if not skip_imgs:
+                download_image(image_url, image_url.split('/')[-1], os.path.join(dest_folder, 'images/'))
 
+
+def create_parser():
+    parser = argparse.ArgumentParser(
+        description='Программа скачивает книги с сайта'
+    )
+    parser.add_argument('--start_page', help='Стартовая страница', type=int, default=1)
+    parser.add_argument('--end_page', help='Конечная страница(не скачивается)', type=int, default=sys.maxsize)
+    parser.add_argument('--dest_folder', help='Каталог для загрузки', default='download')
+    parser.add_argument('--skip_imgs', help='Признак пропуска картинок', action='store_true')
+    parser.add_argument('--skip_txt', help='Признак пропуска текстов', action='store_true')
+    parser.add_argument('--json_path', help='Путь к файлу результатов', default='books.json')
+    return parser
+
+def main():
+    parser = create_parser()
+    args = parser.parse_args()
+    books_links = get_books_links(args.start_page, args.end_page)
+    download_books(books_links, args.dest_folder, args.skip_imgs, args.skip_txt, args.json_path)
+    
 if __name__ == '__main__':
     main()
