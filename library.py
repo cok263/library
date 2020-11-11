@@ -55,9 +55,10 @@ def get_books_links(pages_count, base_url='https://tululu.org/l55/'):
             content = soup.find('div', id='content')
             book_cards = content.find_all('table', class_='d_book')
             books_href += [urljoin(url, card.find('a')['href']) for card in book_cards]
+            return books_href[:1:]
     return books_href
 
-books_links = get_books_links(4)
+books_links = get_books_links(1)
 for url in books_links:
     id = url.split('/')[-2].lstrip('b')
     response = requests.get(url, verify=False, allow_redirects=False)
@@ -65,13 +66,23 @@ for url in books_links:
     if not response.is_redirect:
         soup = BeautifulSoup(response.text, 'lxml')
 
-        content = soup.find('div', id='content')
-        title, author = [header.strip() for header in str(content.find('h1').get_text()).split('::')]
-        image_src = content.find('div', class_='bookimage').find('img')['src']
+        content = soup.select_one('#content')
+        
+        selector_title = 'h1 > a'
+        selector_author = 'h1 a'
+        title = content.select_one(selector_title).previous_sibling.strip().strip(':').strip().capitalize()
+        author = content.select_one(selector_author).text.strip().title()
+        
+        image_selector = '.bookimage img [src]'
+        image_src = content.select_one(image_selector)
         url = 'https://tululu.org/txt.php?id={}'.format(id)  
         image_url = urljoin(url, image_src)
-        comments = [comment.span.get_text() for comment in content.find_all('div', class_='texts')]
-        genres = [genre.get_text() for genre in content.find('span', class_='d_book').find_all('a')]
+
+        comments_selector = '.texts .black'
+        comments = [comment.get_text() for comment in content.select(comments_selector)]
+        
+        genres_selector = 'span.d_book a'
+        genres = [genre.get_text() for genre in content.select(genres_selector)]
         
         book_dict = {
             'title': title,
@@ -80,7 +91,7 @@ for url in books_links:
             'comments': comments,
             'genres': genres,
         }
-
+        print(book_dict)
         with codecs.open("books.json", "a", encoding='utf8') as books_file:
             json.dump(book_dict, books_file, ensure_ascii=False)
         download_txt(url, '{}. {}.txt'.format(id, title))
