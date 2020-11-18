@@ -22,12 +22,14 @@ def download_txt(url, filename, folder='books/'):
     response = requests.get(url, verify=False, allow_redirects=False)
     response.raise_for_status()
 
-    if not response.is_redirect:
-        os.makedirs(folder, exist_ok=True)
-        filename = os.path.join(folder, sanitize_filename(filename))
-        with open(filename, 'wb') as file:
-            file.write(response.content)
-        return filename
+    if response.is_redirect:
+        return None
+
+    os.makedirs(folder, exist_ok=True)
+    filename = os.path.join(folder, sanitize_filename(filename))
+    with open(filename, 'wb') as file:
+        file.write(response.content)
+    return filename
 
 
 def download_image(url, filename, folder='images/'):
@@ -56,14 +58,14 @@ def get_books_links(start_page=1, end_page=sys.maxsize,
         url = urljoin(base_url, str(page))
         response = requests.get(url, verify=False, allow_redirects=False)
         response.raise_for_status()
-        if not response.is_redirect:
-            soup = BeautifulSoup(response.text, 'lxml')
-            content = soup.find('div', id='content')
-            book_cards = content.find_all('table', class_='d_book')
-            books_href += [urljoin(url, card.find('a')['href'])
-                           for card in book_cards]
-        else:
+        if response.is_redirect:
             break
+
+        soup = BeautifulSoup(response.text, 'lxml')
+        content = soup.find('div', id='content')
+        book_cards = content.find_all('table', class_='d_book')
+        books_href += [urljoin(url, card.find('a')['href'])
+                       for card in book_cards]
     return books_href
 
 
@@ -75,49 +77,51 @@ def download_books(books_links, dest_folder='',
         id = url.split('/')[-2].lstrip('b')
         response = requests.get(url, verify=False, allow_redirects=False)
         response.raise_for_status()
-        if not response.is_redirect:
-            soup = BeautifulSoup(response.text, 'lxml')
+        if response.is_redirect:
+            continue
 
-            content = soup.select_one('#content')
+        soup = BeautifulSoup(response.text, 'lxml')
 
-            selector_title = 'h1 > a'
-            selector_author = 'h1 a'
-            title = content.select_one(selector_title).previous_sibling
-            title = title.strip().strip(':').strip().capitalize()
-            author = content.select_one(selector_author).text.strip().title()
+        content = soup.select_one('#content')
 
-            image_selector = '.bookimage img'
-            image_src = content.select_one(image_selector)['src']
-            url = 'https://tululu.org/txt.php?id={}'.format(id)
-            image_url = urljoin(url, image_src)
-            print(image_url)
+        selector_title = 'h1 > a'
+        selector_author = 'h1 a'
+        title = content.select_one(selector_title).previous_sibling
+        title = title.strip().strip(':').strip().capitalize()
+        author = content.select_one(selector_author).text.strip().title()
 
-            comments_selector = '.texts .black'
-            comments = [comment.get_text() for comment
-                        in content.select(comments_selector)]
+        image_selector = '.bookimage img'
+        image_src = content.select_one(image_selector)['src']
+        url = 'https://tululu.org/txt.php?id={}'.format(id)
+        image_url = urljoin(url, image_src)
+        print(image_url)
 
-            genres_selector = 'span.d_book a'
-            genres = [genre.get_text() for genre
-                      in content.select(genres_selector)]
+        comments_selector = '.texts .black'
+        comments = [comment.get_text() for comment
+                    in content.select(comments_selector)]
 
-            book_dict = {
-                'title': title,
-                'author': author,
-                'img src': image_url,
-                'comments': comments,
-                'genres': genres,
-            }
+        genres_selector = 'span.d_book a'
+        genres = [genre.get_text() for genre
+                  in content.select(genres_selector)]
 
-            json_file = os.path.join(dest_folder, json_path)
-            os.makedirs(os.path.dirname(json_file), exist_ok=True)
-            with codecs.open(json_file, "a", encoding='utf8') as books_file:
-                json.dump(book_dict, books_file, ensure_ascii=False)
-            if not skip_txt:
-                download_txt(url, '{}. {}.txt'.format(id, title),
-                             os.path.join(dest_folder, 'books/'))
-            if not skip_imgs:
-                download_image(image_url, image_url.split('/')[-1],
-                               os.path.join(dest_folder, 'images/'))
+        book_dict = {
+            'title': title,
+            'author': author,
+            'img src': image_url,
+            'comments': comments,
+            'genres': genres,
+        }
+
+        json_file = os.path.join(dest_folder, json_path)
+        os.makedirs(os.path.dirname(json_file), exist_ok=True)
+        with codecs.open(json_file, "a", encoding='utf8') as books_file:
+            json.dump(book_dict, books_file, ensure_ascii=False)
+        if not skip_txt:
+            download_txt(url, '{}. {}.txt'.format(id, title),
+                         os.path.join(dest_folder, 'books/'))
+        if not skip_imgs:
+            download_image(image_url, image_url.split('/')[-1],
+                           os.path.join(dest_folder, 'images/'))
 
 
 def create_parser():
