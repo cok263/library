@@ -7,6 +7,14 @@ import sys
 from bs4 import BeautifulSoup
 from pathvalidate import sanitize_filename
 from urllib.parse import urljoin
+from urllib.error import HTTPError
+
+
+def get_response(url):
+    response = requests.get(url, verify=False, allow_redirects=False)
+    response.raise_for_status()
+    
+    return response
 
 
 def download_txt(url, filename, folder='books/'):
@@ -19,11 +27,8 @@ def download_txt(url, filename, folder='books/'):
         str: Путь до файла, куда сохранён текст.
     """
 
-    response = requests.get(url, verify=False, allow_redirects=False)
-    response.raise_for_status()
-
-    print(response.is_redirect)
-    if response.is_redirect:
+    text_book_response = get_response(url)
+    if text_book_response.is_redirect:
         print('text not ok')
         print(
             'Error downloading book text from {}!\
@@ -35,7 +40,7 @@ def download_txt(url, filename, folder='books/'):
     os.makedirs(folder, exist_ok=True)
     filename = os.path.join(folder, sanitize_filename(filename))
     with open(filename, 'wb') as file:
-        file.write(response.content)
+        file.write(text_book_response.content)
     print('download text book {} success'.format(filename))
     return filename
 
@@ -49,9 +54,8 @@ def download_image(url, filename, folder='images/'):
     Returns:
         str: Путь до файла, куда сохранён текст.
     """
-    response = requests.get(url, verify=False, allow_redirects=False)
-    response.raise_for_status()
-    if not response.ok:
+    image_book_response = get_response(url)
+    if not image_book_response.ok:
         print('img not ok')
         print(
             'Error downloading book image from {}!\
@@ -62,7 +66,7 @@ def download_image(url, filename, folder='images/'):
     os.makedirs(folder, exist_ok=True)
     filename = os.path.join(folder, sanitize_filename(filename))
     with open(filename, 'wb') as file:
-        file.write(response.content)
+        file.write(image_book_response.content)
     print('download image book {} success'.format(filename))
     return filename
 
@@ -72,14 +76,13 @@ def get_books_links(start_page=1, end_page=sys.maxsize,
     books_href = []
     for page in range(start_page, end_page):
         url = urljoin(base_url, str(page))
-        response = requests.get(url, verify=False, allow_redirects=False)
-        response.raise_for_status()
-        if response.is_redirect:
+        page_response = get_response(url)
+        if page_response.is_redirect:
             print('Error: page books {} not found! Break.\n'.format(page),
                   file=sys.stderr)
             break
 
-        soup = BeautifulSoup(response.text, 'lxml')
+        soup = BeautifulSoup(page_response.text, 'lxml')
         content = soup.find('div', id='content')
         book_cards = content.find_all('table', class_='d_book')
         books_href += [urljoin(url, card.find('a')['href'])
@@ -146,15 +149,14 @@ def download_books(books_links, dest_folder='',
                    skip_imgs=False, skip_txt=False,
                    json_path='books.json'):
     for url in books_links:
-        response = requests.get(url, verify=False, allow_redirects=False)
-        response.raise_for_status()
-        if response.is_redirect:
+        book_page_response = get_response(url)
+        if book_page_response.is_redirect:
             print(
                 'Error getting book page from {}! page not found!\n'\
                 .format(url), file=sys.stderr
             )
             continue
-        download_book(url, response.text, dest_folder,
+        download_book(url, book_page_response.text, dest_folder,
                       skip_imgs, skip_txt, json_path)
 
 
