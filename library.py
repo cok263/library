@@ -22,13 +22,21 @@ def download_txt(url, filename, folder='books/'):
     response = requests.get(url, verify=False, allow_redirects=False)
     response.raise_for_status()
 
+    print(response.is_redirect)
     if response.is_redirect:
+        print('text not ok')
+        print(
+            'Error downloading book text from {}!\
+            File not found!'.format(url),
+            file=sys.stderr
+        )
         return None
 
     os.makedirs(folder, exist_ok=True)
     filename = os.path.join(folder, sanitize_filename(filename))
     with open(filename, 'wb') as file:
         file.write(response.content)
+    print('download text book {} success'.format(filename))
     return filename
 
 
@@ -43,11 +51,19 @@ def download_image(url, filename, folder='images/'):
     """
     response = requests.get(url, verify=False, allow_redirects=False)
     response.raise_for_status()
+    if not response.ok:
+        print('img not ok')
+        print(
+            'Error downloading book image from {}!\
+            File not found!\n'.format(url),
+            file=sys.stderr
+        )    
 
     os.makedirs(folder, exist_ok=True)
     filename = os.path.join(folder, sanitize_filename(filename))
     with open(filename, 'wb') as file:
         file.write(response.content)
+    print('download image book {} success'.format(filename))
     return filename
 
 
@@ -59,6 +75,8 @@ def get_books_links(start_page=1, end_page=sys.maxsize,
         response = requests.get(url, verify=False, allow_redirects=False)
         response.raise_for_status()
         if response.is_redirect:
+            print('Error: page books {} not found! Break.\n'.format(page),
+                  file=sys.stderr)
             break
 
         soup = BeautifulSoup(response.text, 'lxml')
@@ -131,6 +149,10 @@ def download_books(books_links, dest_folder='',
         response = requests.get(url, verify=False, allow_redirects=False)
         response.raise_for_status()
         if response.is_redirect:
+            print(
+                'Error getting book page from {}! page not found!\n'\
+                .format(url), file=sys.stderr
+            )
             continue
         download_book(url, response.text, dest_folder,
                       skip_imgs, skip_txt, json_path)
