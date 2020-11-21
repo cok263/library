@@ -8,13 +8,23 @@ from bs4 import BeautifulSoup
 from pathvalidate import sanitize_filename
 from urllib.parse import urljoin
 from urllib.error import HTTPError
+from time import sleep
 
 
 def get_response(url):
-    response = requests.get(url, verify=False, allow_redirects=False)
-    response.raise_for_status()
-    
-    return response
+    try:
+        response = requests.get(url, verify=False, allow_redirects=False)
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        print(e, file=sys.stderr)
+        print('eeeeeeee', file=sys.stderr)
+    except requests.exceptions.ConnectionError as e:
+        print(e, file=sys.stderr)
+        print('eeeeeeee', file=sys.stderr)
+        sleep(10)
+        return get_response(url)
+    else:
+        return response
 
 
 def download_txt(url, filename, folder='books/'):
