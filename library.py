@@ -100,7 +100,7 @@ def get_books_links(start_page=1, end_page=sys.maxsize,
     return books_href
 
 
-def parse_book_page(page):
+def parse_book_page(book_url, page):
     soup = BeautifulSoup(page, 'lxml')
     
     content = soup.select_one('#content')
@@ -113,8 +113,8 @@ def parse_book_page(page):
 
     image_selector = '.bookimage img'
     image_src = content.select_one(image_selector)['src']
-    url = 'https://tululu.org/txt.php?id={}'.format(id)
-    image_url = urljoin(url, image_src)
+    #url = 'https://tululu.org/txt.php?id={}'.format(id)
+    image_url = urljoin(book_url, image_src)
 
     comments_selector = '.texts .black'
     comments = [comment.get_text() for comment
@@ -144,7 +144,7 @@ def download_book(book_url, book_page, dest_folder='',
                   skip_imgs=False, skip_txt=False,
                   json_path='books.json'):
     id = book_url.split('/')[-2].lstrip('b')
-    book_info = parse_book_page(book_page)
+    book_info = parse_book_page(book_url, book_page)
     add_book_to_json(book_info, dest_folder, json_path)
     if not skip_txt:
         download_txt(book_url, '{}. {}.txt'.format(id, book_info['title']),
