@@ -4,11 +4,12 @@ import requests
 import codecs
 import argparse
 import sys
+from time import sleep
 from bs4 import BeautifulSoup
 from pathvalidate import sanitize_filename
 from urllib.parse import urljoin
 from urllib.error import HTTPError
-from time import sleep
+from tqdm import tqdm
 
 
 def get_response(url):
@@ -17,10 +18,8 @@ def get_response(url):
         response.raise_for_status()
     except requests.exceptions.HTTPError as e:
         print(e, file=sys.stderr)
-        print('eeeeeeee', file=sys.stderr)
     except requests.exceptions.ConnectionError as e:
         print(e, file=sys.stderr)
-        print('eeeeeeee', file=sys.stderr)
         sleep(10)
         return get_response(url)
     else:
@@ -39,7 +38,6 @@ def download_txt(url, filename, folder='books/'):
 
     text_book_response = get_response(url)
     if text_book_response.is_redirect:
-        print('text not ok')
         print(
             'Error downloading book text from {}!\
             File not found!'.format(url),
@@ -51,7 +49,6 @@ def download_txt(url, filename, folder='books/'):
     filename = os.path.join(folder, sanitize_filename(filename))
     with open(filename, 'wb') as file:
         file.write(text_book_response.content)
-    print('download text book {} success'.format(filename))
     return filename
 
 
@@ -66,7 +63,6 @@ def download_image(url, filename, folder='images/'):
     """
     image_book_response = get_response(url)
     if not image_book_response.ok:
-        print('img not ok')
         print(
             'Error downloading book image from {}!\
             File not found!'.format(url),
@@ -77,7 +73,6 @@ def download_image(url, filename, folder='images/'):
     filename = os.path.join(folder, sanitize_filename(filename))
     with open(filename, 'wb') as file:
         file.write(image_book_response.content)
-    print('download image book {} success'.format(filename))
     return filename
 
 
@@ -157,7 +152,7 @@ def download_book(book_url, book_page, dest_folder='',
 def download_books(books_links, dest_folder='',
                    skip_imgs=False, skip_txt=False,
                    json_path='books.json'):
-    for url in books_links:
+    for url in tqdm(books_links, file=sys.stdout):
         book_page_response = get_response(url)
         if book_page_response.is_redirect:
             print(
