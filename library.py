@@ -69,9 +69,9 @@ def download_image(url, filename, folder='images/'):
         print('img not ok')
         print(
             'Error downloading book image from {}!\
-            File not found!\n'.format(url),
+            File not found!'.format(url),
             file=sys.stderr
-        )    
+        )
 
     os.makedirs(folder, exist_ok=True)
     filename = os.path.join(folder, sanitize_filename(filename))
@@ -88,7 +88,7 @@ def get_books_links(start_page=1, end_page=sys.maxsize,
         url = urljoin(base_url, str(page))
         page_response = get_response(url)
         if page_response.is_redirect:
-            print('Error: page books {} not found! Break.\n'.format(page),
+            print('Error: page books {} not found! Break.'.format(page),
                   file=sys.stderr)
             break
 
@@ -102,7 +102,7 @@ def get_books_links(start_page=1, end_page=sys.maxsize,
 
 def parse_book_page(book_url, page):
     soup = BeautifulSoup(page, 'lxml')
-    
+
     content = soup.select_one('#content')
 
     selector_title = 'h1 > a'
@@ -113,7 +113,6 @@ def parse_book_page(book_url, page):
 
     image_selector = '.bookimage img'
     image_src = content.select_one(image_selector)['src']
-    #url = 'https://tululu.org/txt.php?id={}'.format(id)
     image_url = urljoin(book_url, image_src)
 
     comments_selector = '.texts .black'
@@ -137,7 +136,7 @@ def add_book_to_json(book_info, dest_folder, json_path):
     json_file = os.path.join(dest_folder, json_path)
     os.makedirs(os.path.dirname(json_file), exist_ok=True)
     with codecs.open(json_file, "a", encoding='utf8') as books_file:
-        json.dump(book_info, books_file, ensure_ascii=False)    
+        json.dump(book_info, books_file, ensure_ascii=False)
 
 
 def download_book(book_url, book_page, dest_folder='',
@@ -162,8 +161,9 @@ def download_books(books_links, dest_folder='',
         book_page_response = get_response(url)
         if book_page_response.is_redirect:
             print(
-                'Error getting book page from {}! page not found!\n'\
-                .format(url), file=sys.stderr
+                'Error getting book page from {}!\
+                Page not found!'.format(url),
+                file=sys.stderr
             )
             continue
         download_book(url, book_page_response.text, dest_folder,
