@@ -121,17 +121,17 @@ def parse_book_page(book_url, page):
     return {
         'title': title,
         'author': author,
-        'img src': image_url,
+        'img_src': image_url,
         'comments': comments,
         'genres': genres,
     }
 
 
-def add_book_to_json(book_info, dest_folder, json_path):
+def add_books_to_json(books_info, dest_folder, json_path):
     json_file = os.path.join(dest_folder, json_path)
     os.makedirs(os.path.dirname(json_file), exist_ok=True)
     with codecs.open(json_file, "a", encoding='utf8') as books_file:
-        json.dump(book_info, books_file, ensure_ascii=False)
+        json.dump(books_info, books_file, ensure_ascii=False)
 
 
 def download_book(book_url, book_page, dest_folder='',
@@ -139,19 +139,27 @@ def download_book(book_url, book_page, dest_folder='',
                   json_path='books.json'):
     id = book_url.split('/')[-2].lstrip('b')
     book_info = parse_book_page(book_url, book_page)
-    add_book_to_json(book_info, dest_folder, json_path)
     if not skip_txt:
-        download_txt(book_url, '{}. {}.txt'.format(id, book_info['title']),
-                     os.path.join(dest_folder, 'books/'))
+        book_info['book_path'] = download_txt(
+            book_url, '{}. {}.txt'.format(
+                id, book_info['title']
+            ),
+            os.path.join(dest_folder, 'books/')
+        )
     if not skip_imgs:
-        download_image(book_info['img src'],
-                       book_info['img src'].split('/')[-1],
-                       os.path.join(dest_folder, 'images/'))
+        book_info['img_src'] = download_image(
+            book_info['img_src'],
+            book_info['img_src'].split('/')[-1],
+            os.path.join(dest_folder, 'images/')
+        )
+    return book_info
 
 
 def download_books(books_links, dest_folder='',
                    skip_imgs=False, skip_txt=False,
                    json_path='books.json'):
+    books_info = []
+
     for url in tqdm(books_links, file=sys.stdout):
         book_page_response = get_response(url)
         if book_page_response.is_redirect:
@@ -161,8 +169,11 @@ def download_books(books_links, dest_folder='',
                 file=sys.stderr
             )
             continue
-        download_book(url, book_page_response.text, dest_folder,
+        books_info.append(
+            download_book(url, book_page_response.text, dest_folder,
                       skip_imgs, skip_txt, json_path)
+        )
+    add_books_to_json(books_info, dest_folder, json_path)
 
 
 def create_parser():
