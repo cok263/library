@@ -35,7 +35,7 @@ def download_txt(url, filename, folder='books/'):
     Returns:
         str: Путь до файла, куда сохранён текст.
     """
-
+    print(url) 
     text_book_response = get_response(url)
     if text_book_response.is_redirect:
         print(
@@ -141,9 +141,8 @@ def download_book(book_url, book_page, dest_folder='',
     book_info = parse_book_page(book_url, book_page)
     if not skip_txt:
         book_info['book_path'] = download_txt(
-            book_url, '{}. {}.txt'.format(
-                id, book_info['title']
-            ),
+            urljoin(book_url, '/txt.php?id={}'.format(id)),
+            '{}. {}.txt'.format(id, book_info['title']),
             os.path.join(dest_folder, 'books/')
         )
     if not skip_imgs:
